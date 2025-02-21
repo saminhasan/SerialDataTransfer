@@ -1,0 +1,9 @@
+no data routing, only command routing. ok maybe no, but individual axis data increses max len of array but maybe not needed
+max var size - 512KB or 524288 bytes, at 512 buffer size 128 packets payload(no over head) 1024 at 64 byte buffer size->Payload Segments 2 bits to be safe
+BIN / TXT - b11111111(decode axis) - 
+Header Packet
+startByte - recipient ID - Header  - #Payload Seq(0 for header frame) - payload Size-  EOT/EBO -> R/W - CRC32 - endByte
+    1            1           1               2                                  4            1               4    1
+
+startByte - recipient ID - Header  - #Payload Seq(0 for header frame) - payload Size-Payload-  EOT/EBO ->end if EOT - CRC32 - - endByte
+    1            1           1               2                                  4     - N -       1                       4      1
