@@ -2,6 +2,7 @@
 #define UTILS_H
 
 #include <Arduino.h>
+#include <FastCRC.h>
 
 // Convert 1-byte array to bool using bitwise operations
 void bytesToBool(byte arr[1], bool *value) {
@@ -25,6 +26,12 @@ void deserializePayload(uint8_t *payload, T &var) {
     for (size_t i = 0; i < sizeof(T); i++) {
         varPtr[i] = payload[i]; // Assigning byte-by-byte
     }
+}
+
+
+uint32_t computeCRC32(uint8_t *data, size_t dataSize) {
+    FastCRC32 CRC32;
+    return CRC32.crc32(data, dataSize);
 }
 
 #endif // UTILS_H

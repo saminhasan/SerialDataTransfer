@@ -6,6 +6,7 @@
 #include "headerBytes.h"
 #include "binaryParser.h"
 #include "textParser.h"
+
 void init_theta();
 
 void setup()
@@ -28,16 +29,6 @@ void setup()
 void loop(void)
 {
 
-  if (Serial.dtr())
-  {
-    // usb connected
-    digitalWrite(LED_BUILTIN, HIGH);
-  }
-  else
-  {
-    // usb disconnected
-    digitalWrite(LED_BUILTIN, LOW);
-  }
 }
 
 void serialEvent(void)

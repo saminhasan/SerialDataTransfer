@@ -5,7 +5,11 @@
 #include <Arduino.h>
 #include "headerBytes.h"
 #include "utils.h"
-const int N = 21328;
+#include <FastCRC.h>
+FastCRC32 CRC32;
+
+
+const int N = 2731;
 struct MotorCommand
 {
   int speed;
@@ -21,7 +25,7 @@ struct SensorData
 DMAMEM union
 {
   float thetas[N][6];
-  uint8_t rawBytes[N * 6];
+  uint8_t rawBytes[sizeof(float) * N * 6];
 } thetaBuffer;
 void init_theta()
 {
@@ -37,42 +41,20 @@ void init_theta()
 MotorCommand motorCmd;
 SensorData sensorData;
 
-void sendBinaryPayload(uint8_t *payload, size_t payloadSize, size_t chunkSize)
+void sendBinaryPayload(uint8_t *payload, size_t payloadSize)
 {
-  // Serial.write(SOH);  // Start of transmission
-  // delay(5);  // Small delay to prevent buffer overflow
-
-  size_t bytesSent = 0;
-  while (bytesSent < payloadSize)
-  {
-    size_t currentChunkSize = min(chunkSize, payloadSize - bytesSent);
-    Serial.write(&payload[bytesSent], currentChunkSize);
-    // Serial.send_now();
-    bytesSent += currentChunkSize;
-
-    // // Optional: Wait for ACK from receiver
-    // while (Serial.available() == 0);
-    // Serial.read();  // Read ACK (ignore content)
-    // Serial.write(EOT);  // Start of transmission
-  }
-
-  // Serial.write(EOT);  // End of transmission
+  Serial.write(payload, payloadSize);
 }
 
 void processBinaryPayload(byte header, int length)
 {
-  // byte payload[length];
-  int bytesRead = 0;
-  while (bytesRead < length)
+  int bytesRead = Serial.readBytes(reinterpret_cast<char *>(thetaBuffer.rawBytes), length);
+  if (bytesRead != length)
   {
-    int availableBytes = Serial.available();
-    if (availableBytes > 0)
+    digitalWrite(LED_BUILTIN, HIGH);
+    while (1)
     {
-      int readSize = min(availableBytes, length - bytesRead);
-      // Serial.readBytes(reinterpret_cast<char *>(payload + bytesRead), readSize);
-      Serial.readBytes(reinterpret_cast<char *>(thetaBuffer.rawBytes + bytesRead), readSize);
-      bytesRead += readSize;
-      // Serial.write(ACK);
+      ;
     }
   }
   while (Serial.available() < 1)
@@ -95,34 +77,17 @@ void processBinaryPayload(byte header, int length)
     //   Serial.printf("<Sensor Data -> Temperature: %.2f, Pressure: %.2f>\n", sensorData.temperature, sensorData.pressure);
     //   break;
 
-  case 0x03: // Header for SensorData
-    // deserializePayload(payload, thetaBuffer.thetas);
-    Serial.println("<Thetas:");
-    for (int i = 0; i < N; i++)
-    {
-      Serial.print("<\t"); // Tab for spacing
-      Serial.print("Row ");
-      Serial.print(i);
-      Serial.print(": ");
-      for (int j = 0; j < 6; j++)
-      {
-        thetaBuffer.thetas[i][j] = 1;
-        Serial.print(thetaBuffer.thetas[i][j], 4); // Print with 4 decimal places
-        Serial.print("\t");                        // Tab for spacing
-      }
-      Serial.println(">");
-      // delay(1);
-    }
-    Serial.println(">");
-
+  case 0x03:
     break;
   default:
-    Serial.printf("<Unknown header: %u>\n", header);
+    // Serial.printf("<Unknown header: %u>\n", header);
     break;
   }
-  Serial.printf("<DONE>");
+  // Serial.printf("<DONE>");
   delay(1);
-  sendBinaryPayload(thetaBuffer.rawBytes, length, USB_BUFFER_SIZE);
+  sendBinaryPayload(thetaBuffer.rawBytes, length);
+  uint32_t crc32 = CRC32.crc32(thetaBuffer.rawBytes, sizeof(thetaBuffer.rawBytes));
+  sendBinaryPayload((uint8_t *)&crc32, sizeof(crc32));
 }
 void processBinaryInput(void)
 {
